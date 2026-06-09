@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>전설부 노트</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="game">
+    <button id="fullscreenBtn" class="fullscreen-btn" type="button">전체</button>
+    <section id="prep" class="screen active">
+      <header class="topbar">
+        <div>
+          <h1>전설부 노트</h1>
+          <p id="stageTitle">Chapter 1-1 카메라 테스트</p>
+        </div>
+        <div class="chips">
+          <span>영감 <b id="inspirationText">8</b></span>
+          <span>배치 <b id="teamText">1/24</b></span>
+        </div>
+      </header>
+
+      <nav id="stageList" class="stage-list" aria-label="Chapter 1 방송부"></nav>
+
+      <section class="panel">
+        <div class="panel-title">
+          <b>6x4 전투 배치판</b>
+          <span>클릭 또는 드래그로 배치/합성</span>
+        </div>
+        <div id="board" class="board"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <b>대기 캐릭터</b>
+          <span id="poolText">1-1 클리어 후 동료 해금</span>
+        </div>
+        <div id="bench" class="bench"></div>
+      </section>
+
+      <section id="info" class="info panel"></section>
+
+      <footer class="prep-actions">
+        <button id="summonBtn">동료 소환</button>
+        <button id="battleBtn" class="primary">전투 개시</button>
+        <button id="cleanBtn">진영 확장</button>
+      </footer>
+    </section>
+
+    <section id="battle" class="screen">
+      <canvas id="arena" width="360" height="780"></canvas>
+      <div class="battle-ui">
+        <header class="battle-top">
+          <div class="battle-card">
+            <b id="battleTitle">Chapter 1-1</b>
+            <span id="battleStats">아군 1 / 적 1</span>
+          </div>
+          <label class="battle-card switch">
+            <input id="doanAutoToggle" type="checkbox">
+            정도안 자동 AI
+          </label>
+          <div class="battle-card top-actions">
+            <button id="speedBtn">1x</button>
+            <button id="pauseBtn">일시정지</button>
+          </div>
+        </header>
+        <footer class="battle-bottom">
+          <div id="joystick" class="joystick"><div id="knob"></div></div>
+          <div class="battle-buttons">
+            <button id="noteBtn">노트</button>
+          </div>
+          <div id="battleLog" class="battle-log">전투 준비</div>
+        </footer>
+      </div>
+    </section>
+
+    <div id="modal" class="modal" aria-hidden="true">
+      <div class="dialog">
+        <h2 id="modalTitle">선택</h2>
+        <p id="modalText">보상을 선택하세요.</p>
+        <div id="modalChoices" class="choice-grid"></div>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
