@@ -151,12 +151,28 @@ h1 { margin: 0; font-size: 24px; line-height: 1; letter-spacing: 0; }
   text-align: center;
   line-height: 1.05;
   font-size: 10px;
+  touch-action: none;
+  user-select: none;
 }
 .unit-card.selected { outline: 3px solid var(--gold); outline-offset: -3px; }
 .unit-card img { width: 29px; height: 34px; object-fit: contain; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); }
 .unit-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stars { color: var(--gold); font-size: 9px; letter-spacing: 0; }
+.stars { color: var(--gold); font-size: 9px; letter-spacing: 0; min-height: 10px; }
+.stars.tier-green { color: var(--green); }
+.stars.tier-purple { color: #b987ff; font-size: 14px; line-height: .8; }
 .route { color: var(--green); font-size: 9px; }
+.drag-ghost {
+  position: fixed;
+  z-index: 100;
+  width: 50px;
+  height: 58px;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -58%);
+  pointer-events: none;
+  opacity: .92;
+  box-shadow: 0 14px 35px rgba(0,0,0,.42);
+}
 
 .info { min-height: 0; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
 .info-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-weight: 900; }
@@ -196,11 +212,18 @@ canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; 
 .top-actions { pointer-events: auto; display: grid; grid-template-columns: 48px 72px; gap: 5px; padding: 5px; }
 .top-actions button { min-height: 32px; font-size: 11px; }
 
-.battle-bottom { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: end; pointer-events: none; }
+.battle-bottom {
+  position: relative;
+  min-height: 156px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
 .joystick {
   pointer-events: auto;
-  width: 110px;
-  height: 110px;
+  width: 124px;
+  height: 124px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(255,255,255,.08);
@@ -209,19 +232,22 @@ canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; 
 }
 #knob {
   position: absolute;
-  width: 48px;
-  height: 48px;
-  left: 31px;
-  top: 31px;
+  width: 52px;
+  height: 52px;
+  left: 36px;
+  top: 36px;
   border-radius: 999px;
   background: rgba(240,196,93,.84);
   border: 1px solid rgba(255,255,255,.34);
 }
-.battle-buttons { pointer-events: auto; display: grid; grid-template-columns: 1fr; gap: 6px; }
+.battle-buttons { display: none; }
 .battle-buttons button { min-height: 52px; font-size: 15px; }
 .battle-log {
-  grid-column: 2;
-  min-height: 42px;
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 134px;
+  min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(7,9,13,.7);

@@ -152,6 +152,7 @@
   let battle = null;
   let lastTime = 0;
   let dragSource = null;
+  let prepDrag = null;
   let joystick = { active: false, x: 0, y: 0 };
   const keys = new Set();
 
@@ -205,6 +206,8 @@
       const locked = row < 4 - state.formationRows;
       const cell = document.createElement("div");
       cell.className = `cell ${locked ? "locked" : ""} ${row >= 2 ? "front" : ""}`;
+      cell.dataset.drop = "board";
+      cell.dataset.index = i;
       if (!locked) {
         bindDrop(cell, "board", i);
         cell.addEventListener("click", () => selectOrMove("board", i));
@@ -219,6 +222,8 @@
     state.bench.forEach((unit, i) => {
       const slot = document.createElement("div");
       slot.className = `slot ${unit ? "" : "empty"}`;
+      slot.dataset.drop = "bench";
+      slot.dataset.index = i;
       bindDrop(slot, "bench", i);
       slot.addEventListener("click", () => selectOrMove("bench", i));
       if (unit) slot.appendChild(unitCard(unit, isSelected("bench", i)));
@@ -230,11 +235,87 @@
     const c = characters[unit.id];
     const card = document.createElement("div");
     card.className = `unit-card ${selected ? "selected" : ""}`;
-    card.draggable = true;
+    card.draggable = false;
     card.style.setProperty("--c", c.color);
-    card.innerHTML = `<img src="${spriteThumbs[c.sprite] || `${SPRITE_BASE}${c.sprite}.png`}" alt=""><span class="unit-name">${c.short}</span><span class="stars">${"★".repeat(unit.star)}</span>${unit.route ? `<span class="route">${unit.route}</span>` : ""}`;
-    card.addEventListener("dragstart", () => { dragSource = selectedLocationOf(unit.uid); });
+    card.innerHTML = `<img src="${spriteThumbs[c.sprite] || `${SPRITE_BASE}${c.sprite}.png`}" alt=""><span class="unit-name">${c.short}</span>${starMarkup(unit.star)}${unit.route ? `<span class="route">${unit.route}</span>` : ""}`;
+    card.addEventListener("pointerdown", event => beginPrepDrag(event, unit.uid));
+    card.addEventListener("dragstart", event => event.preventDefault());
     return card;
+  }
+
+  function starClass(star) {
+    if (star >= 7) return "tier-purple";
+    if (star >= 4) return "tier-green";
+    return "tier-gold";
+  }
+
+  function starText(star) {
+    if (star >= 7) return "★";
+    if (star >= 4) return "★".repeat(star - 3);
+    return "★".repeat(star);
+  }
+
+  function starMarkup(star) {
+    return `<span class="stars ${starClass(star)}">${starText(star)}</span>`;
+  }
+
+  function beginPrepDrag(event, uid) {
+    const source = selectedLocationOf(uid);
+    if (!source) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state.selected = source;
+    renderInfo();
+    prepDrag = { uid, source, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, moved: false, ghost: null };
+    document.addEventListener("pointermove", movePrepDrag);
+    document.addEventListener("pointerup", endPrepDrag, { once: true });
+    document.addEventListener("pointercancel", cancelPrepDrag, { once: true });
+  }
+
+  function movePrepDrag(event) {
+    if (!prepDrag) return;
+    prepDrag.x = event.clientX;
+    prepDrag.y = event.clientY;
+    const moved = Math.hypot(prepDrag.x - prepDrag.startX, prepDrag.y - prepDrag.startY) > 6;
+    if (moved && !prepDrag.ghost) {
+      prepDrag.moved = true;
+      const unit = getArray(prepDrag.source.from)[prepDrag.source.index];
+      if (!unit) return cancelPrepDrag();
+      prepDrag.ghost = unitCard(unit, true);
+      prepDrag.ghost.classList.add("drag-ghost");
+      document.body.appendChild(prepDrag.ghost);
+    }
+    if (prepDrag.ghost) {
+      prepDrag.ghost.style.left = `${prepDrag.x}px`;
+      prepDrag.ghost.style.top = `${prepDrag.y}px`;
+    }
+  }
+
+  function endPrepDrag(event) {
+    if (!prepDrag) return;
+    document.removeEventListener("pointermove", movePrepDrag);
+    const drag = prepDrag;
+    prepDrag = null;
+    drag.ghost?.remove();
+    if (!drag.moved) {
+      state.selected = drag.source;
+      render();
+      return;
+    }
+    const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-drop]");
+    if (dropTarget) {
+      moveOrMerge(drag.source.from, drag.source.index, dropTarget.dataset.drop, Number(dropTarget.dataset.index));
+    } else {
+      render();
+    }
+  }
+
+  function cancelPrepDrag() {
+    if (!prepDrag) return;
+    document.removeEventListener("pointermove", movePrepDrag);
+    prepDrag.ghost?.remove();
+    prepDrag = null;
+    render();
   }
 
   function bindDrop(target, to, index) {
@@ -429,6 +510,7 @@
   function updateBattle(dt) {
     battle.t += dt;
     battle.noteCd = Math.max(0, battle.noteCd - dt);
+    if (battle.noteCd <= 0) noteSkill();
     battle.scienceSlow = battle.enemies.some(e => e.type === "mic" && e.hp > 0) ? .52 : 1;
     battle.allies.forEach(a => updateAlly(a, dt));
     battle.enemies.forEach(e => updateEnemy(e, dt));
@@ -1017,8 +1099,10 @@
     battle.projectiles.forEach(drawProjectile);
     battle.texts.forEach(drawText);
     if (battle.status !== "run") drawResult(battle.status === "win");
-    el.noteBtn.disabled = !battle.allies.some(a => a.id === "doan" && a.hp > 0) || battle.noteCd > 0;
-    el.noteBtn.textContent = battle.noteCd > 0 ? `노트 ${Math.ceil(battle.noteCd)}` : "노트";
+    if (el.noteBtn) {
+      el.noteBtn.disabled = !battle.allies.some(a => a.id === "doan" && a.hp > 0) || battle.noteCd > 0;
+      el.noteBtn.textContent = battle.noteCd > 0 ? `노트 ${Math.ceil(battle.noteCd)}` : "노트";
+    }
   }
 
   function drawArena() {
@@ -1043,6 +1127,7 @@
     drawSprite(a, 1);
     if (a.rec > 0) badge(a.x, a.y - a.r - 14, "REC", "#ff3d51");
     if (a.id === "doan") badge(a.x, a.y + a.r + 13, el.doanAutoToggle.checked ? "AI" : "P", "#efc45d");
+    drawUnitStars(a);
     bars(a);
   }
 
@@ -1092,6 +1177,21 @@
     if (u.side === "ally" && u.hp > 0) { ctx.fillStyle = "#78b9ff"; ctx.fillRect(x, y + 5, w * (u.science / u.stats.scienceMax), 3); }
   }
 
+  function drawUnitStars(u) {
+    const y = Math.min(ARENA.y + ARENA.h - 8, (u.drawBox?.y ?? u.y) + (u.drawBox?.h ?? u.r * 2) + 10);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = u.star >= 7 ? "900 16px system-ui" : "900 11px system-ui";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(5,8,12,.85)";
+    ctx.fillStyle = u.star >= 7 ? "#b987ff" : u.star >= 4 ? "#6ee7a8" : "#efc45d";
+    const textValue = starText(u.star);
+    ctx.strokeText(textValue, u.x, y);
+    ctx.fillText(textValue, u.x, y);
+    ctx.restore();
+  }
+
   function drawText(t) {
     ctx.globalAlpha = clamp(t.life / .65, 0, 1);
     ctx.fillStyle = t.color;
@@ -1123,14 +1223,14 @@
 
   function syncGameScale() {
     const viewport = window.visualViewport;
-    const vw = window.innerWidth || viewport?.width || GAME_W;
-    const vh = window.innerHeight || viewport?.height || GAME_H;
-    const isMobileViewport = vw <= 520;
+    const visibleW = Math.min(window.innerWidth || Infinity, viewport?.width || Infinity);
+    const visibleH = Math.min(window.innerHeight || Infinity, viewport?.height || Infinity);
+    const vw = Number.isFinite(visibleW) ? visibleW : GAME_W;
+    const vh = Number.isFinite(visibleH) ? visibleH : GAME_H;
     const margin = document.fullscreenElement ? 0 : 4;
     const widthScale = (vw - margin) / GAME_W;
     const heightScale = (vh - margin) / GAME_H;
-    const fitScale = Math.min(widthScale, heightScale);
-    const scale = Math.min(1, Math.max(.1, isMobileViewport && !document.fullscreenElement ? widthScale : fitScale));
+    const scale = Math.min(1, Math.max(.1, Math.min(widthScale, heightScale)));
     document.documentElement.style.setProperty("--game-scale", scale.toFixed(4));
   }
 
@@ -1260,7 +1360,7 @@
   });
   el.battleBtn.addEventListener("click", startBattle);
   el.cleanBtn.addEventListener("click", expandFormation);
-  el.noteBtn.addEventListener("click", noteSkill);
+  el.noteBtn?.addEventListener("click", noteSkill);
   el.speedBtn.addEventListener("click", () => {
     if (!battle) return;
     battle.speed = battle.speed === 1 ? 1.5 : battle.speed === 1.5 ? 2 : 1;
