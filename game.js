@@ -9,6 +9,7 @@
   const SPRITE_BASE = "assets/characters/";
   const BROADCAST_BASE = "assets/broadcast/";
   const SUMMON_COST = 3;
+  const ENEMY_HP_MULTIPLIER = 5;
   const STAR = {
     1: { hp: 1, atk: 1, science: 100 },
     2: { hp: 1.6, atk: 1.5, science: 110 },
@@ -21,6 +22,7 @@
 
   syncGameScale();
   window.addEventListener("resize", syncGameScale);
+  window.addEventListener("orientationchange", () => setTimeout(syncGameScale, 240));
   window.visualViewport?.addEventListener("resize", syncGameScale);
   window.visualViewport?.addEventListener("scroll", syncGameScale);
 
@@ -409,7 +411,7 @@
     return {
       side: "enemy", type, def: d, x: ARENA.x + 70 + col * 92 + (row % 2) * 28, y: ARENA.y + 72 + row * 58,
       r: type === "boss" ? 20 : type === "miniboss" ? 17 : 13,
-      maxHp: Math.round(d.hp * mul), hp: Math.round(d.hp * mul), atk: Math.round(d.atk * mul),
+      maxHp: Math.round(d.hp * mul * ENEMY_HP_MULTIPLIER), hp: Math.round(d.hp * mul * ENEMY_HP_MULTIPLIER), atk: Math.round(d.atk * mul),
       speed: d.speed * 58, range: d.range * 42, atkCd: .5 + Math.random(), skillCd: 1 + Math.random() * 2, buff: 0, marked: 0, slow: 0, lastHitBy: null
     };
   }
@@ -1121,24 +1123,42 @@
 
   function syncGameScale() {
     const viewport = window.visualViewport;
-    const vw = viewport?.width || window.innerWidth || GAME_W;
-    const vh = viewport?.height || window.innerHeight || GAME_H;
-    const margin = 8;
-    const scale = Math.min(1, Math.max(.1, Math.min((vw - margin) / GAME_W, (vh - margin) / GAME_H)));
+    const vw = window.innerWidth || viewport?.width || GAME_W;
+    const vh = window.innerHeight || viewport?.height || GAME_H;
+    const isMobileViewport = vw <= 520;
+    const margin = document.fullscreenElement ? 0 : 4;
+    const widthScale = (vw - margin) / GAME_W;
+    const heightScale = (vh - margin) / GAME_H;
+    const fitScale = Math.min(widthScale, heightScale);
+    const scale = Math.min(1, Math.max(.1, isMobileViewport && !document.fullscreenElement ? widthScale : fitScale));
     document.documentElement.style.setProperty("--game-scale", scale.toFixed(4));
+  }
+
+  async function lockPortraitFullscreen() {
+    try {
+      await screen.orientation?.lock?.("portrait-primary");
+    } catch {
+      try {
+        await screen.orientation?.lock?.("portrait");
+      } catch {
+        /* Some mobile browsers only allow fullscreen without orientation lock. */
+      }
+    }
   }
 
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) {
+        screen.orientation?.unlock?.();
         await document.exitFullscreen();
       } else {
-        await document.documentElement.requestFullscreen();
+        await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+        await lockPortraitFullscreen();
       }
     } catch {
       toast("이 브라우저에서는 전체화면을 사용할 수 없습니다.");
     } finally {
-      setTimeout(syncGameScale, 80);
+      setTimeout(syncGameScale, 160);
       updateFullscreenButton();
     }
   }
@@ -1234,8 +1254,9 @@
   el.summonBtn.addEventListener("click", summon);
   el.fullscreenBtn.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) screen.orientation?.unlock?.();
     updateFullscreenButton();
-    syncGameScale();
+    setTimeout(syncGameScale, 160);
   });
   el.battleBtn.addEventListener("click", startBattle);
   el.cleanBtn.addEventListener("click", expandFormation);
